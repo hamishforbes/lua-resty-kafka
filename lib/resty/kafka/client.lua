@@ -132,8 +132,15 @@ local function _fetch_metadata(self, new_topic)
     local sc = self.socket_config
     local req = metadata_encode(self.client_id, topics, num)
 
+    local broker_txt = {}
+    for k,v in pairs(broker_list) do
+        table.insert(broker_txt, {broker_id = k, host = v.host, port = v.port})
+    end
+    ngx_log(ngx.INFO, "[Kafka](",ngx.worker.id(),") Fetch Metadata broker list ", require("cjson").encode(broker_txt))
+
     for i = 1, #broker_list do
         local host, port = broker_list[i].host, broker_list[i].port
+        ngx_log(ngx.INFO, "[Kafka](",ngx.worker.id(),") Fetching metadata from ", host,":", port)
         local bk = broker:new(host, port, sc)
 
         local resp, err = bk:send_receive(req)
@@ -143,6 +150,12 @@ local function _fetch_metadata(self, new_topic)
         else
             local brokers, topic_partitions = metadata_decode(resp)
             self.brokers, self.topic_partitions = brokers, topic_partitions
+
+            local broker_txt = {}
+            for k,v in pairs(brokers) do
+                table.insert(broker_txt, {broker_id = k, host = v.host, port = v.port})
+            end
+            ngx_log(ngx.INFO, "[Kafka](",ngx.worker.id(),") New broker list ", require("cjson").encode(broker_txt))
 
             return brokers, topic_partitions
         end
